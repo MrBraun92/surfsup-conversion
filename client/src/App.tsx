@@ -3,6 +3,7 @@ import { Dashboard } from "./pages/Dashboard";
 import { Importar } from "./pages/Importar";
 import { Alugueis } from "./pages/Alugueis";
 import { Aprovacoes } from "./pages/Aprovacoes";
+import { Vendas } from "./pages/Vendas";
 
 const navItems = [
   { to: "/", label: "Dashboard", end: true },
@@ -48,7 +49,7 @@ export function App() {
           <Route path="/alugueis" element={<Alugueis />} />
           <Route path="/aprovacoes" element={<Aprovacoes />} />
           <Route path="/conversas" element={<Placeholder title="Conversas" />} />
-          <Route path="/vendas" element={<Placeholder title="Vendas" />} />
+          <Route path="/vendas" element={<Vendas />} />
           <Route path="/clientes" element={<Placeholder title="Clientes" />} />
           <Route path="/importar" element={<Importar />} />
           <Route path="/configuracoes" element={<Placeholder title="Configurações" />} />
