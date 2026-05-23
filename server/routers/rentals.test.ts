@@ -195,8 +195,11 @@ describe("offersRouter — generateMessage", () => {
 
     const router = createOffersRouter(db);
     const caller = router.createCaller({});
-    const offer = await caller.generateMessage({ rentalId: seeded.rental.id });
-    expect(offer.status).toBe("Draft");
+    process.env.LLM_OFFLINE_FALLBACK_MODE = "1";
+    const result = await caller.generateMessage({ rentalId: seeded.rental.id });
+    delete process.env.LLM_OFFLINE_FALLBACK_MODE;
+    expect(result.offer.status).toBe("PendingApproval");
+    expect(result.message.content.length).toBeGreaterThan(10);
   });
 
   it("respeita setting min_score_to_generate quando presente", async () => {
