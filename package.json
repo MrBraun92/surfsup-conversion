@@ -15,6 +15,7 @@
     "test:watch": "vitest",
     "db:migrate": "tsx server/db/migrate.ts",
     "db:generate": "drizzle-kit generate",
+    "build:template": "tsx scripts/build-template.ts",
     "lint": "echo 'lint skipped'",
     "start": "node dist/server/index.js"
   },
