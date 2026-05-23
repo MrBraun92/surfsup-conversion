@@ -1,4 +1,17 @@
+import { useEffect, useState } from "react";
 import { Routes, Route, NavLink, useLocation } from "react-router-dom";
+import {
+  LayoutDashboard,
+  Waves,
+  CheckCircle2,
+  MessageSquare,
+  DollarSign,
+  Users,
+  Upload,
+  Settings,
+  PanelLeftClose,
+  PanelLeftOpen,
+} from "lucide-react";
 import { Dashboard } from "./pages/Dashboard";
 import { Importar } from "./pages/Importar";
 import { Alugueis } from "./pages/Alugueis";
@@ -10,28 +23,30 @@ import { Pay } from "./pages/Pay";
 import { Configuracoes } from "./pages/Configuracoes";
 
 const navItems = [
-  { to: "/", label: "Dashboard", end: true },
-  { to: "/alugueis", label: "Aluguéis" },
-  { to: "/aprovacoes", label: "Aprovações" },
-  { to: "/conversas", label: "Conversas" },
-  { to: "/vendas", label: "Vendas" },
-  { to: "/clientes", label: "Clientes" },
-  { to: "/importar", label: "Importar" },
-  { to: "/configuracoes", label: "Configurações" },
+  { to: "/", label: "Dashboard", icon: LayoutDashboard, end: true },
+  { to: "/alugueis", label: "Aluguéis", icon: Waves },
+  { to: "/aprovacoes", label: "Aprovações", icon: CheckCircle2 },
+  { to: "/conversas", label: "Conversas", icon: MessageSquare },
+  { to: "/vendas", label: "Vendas", icon: DollarSign },
+  { to: "/clientes", label: "Clientes", icon: Users },
+  { to: "/importar", label: "Importar", icon: Upload },
+  { to: "/configuracoes", label: "Configurações", icon: Settings },
 ];
 
-function Placeholder({ title }: { title: string }) {
-  return (
-    <div className="p-8">
-      <h1 className="text-2xl font-bold">{title}</h1>
-      <p className="text-slate-500 mt-2">Em construção.</p>
-    </div>
-  );
-}
+const SIDEBAR_KEY = "surfsup_sidebar_collapsed";
 
 export function App() {
   const location = useLocation();
   const isStandaloneRoute = location.pathname.startsWith("/pay/");
+
+  const [collapsed, setCollapsed] = useState<boolean>(() => {
+    if (typeof window === "undefined") return false;
+    return window.localStorage.getItem(SIDEBAR_KEY) === "1";
+  });
+
+  useEffect(() => {
+    window.localStorage.setItem(SIDEBAR_KEY, collapsed ? "1" : "0");
+  }, [collapsed]);
 
   if (isStandaloneRoute) {
     return (
@@ -43,20 +58,48 @@ export function App() {
 
   return (
     <div className="flex min-h-screen">
-      <aside className="w-56 border-r bg-white p-4 flex flex-col gap-1">
-        <div className="text-lg font-bold mb-4">🏄 Surfsup</div>
-        {navItems.map((it) => (
-          <NavLink
-            key={it.to}
-            to={it.to}
-            end={it.end}
-            className={({ isActive }) =>
-              `px-3 py-2 rounded text-sm ${isActive ? "bg-slate-900 text-white" : "hover:bg-slate-100"}`
-            }
+      <aside
+        className={`border-r bg-white flex flex-col gap-1 transition-[width] duration-200 ease-out ${
+          collapsed ? "w-14" : "w-56"
+        }`}
+      >
+        <div
+          className={`flex items-center ${
+            collapsed ? "justify-center" : "justify-between"
+          } px-3 pt-4 pb-2`}
+        >
+          {!collapsed && <div className="text-lg font-bold">🏄 Surfsup</div>}
+          <button
+            type="button"
+            onClick={() => setCollapsed((c) => !c)}
+            className="p-1.5 rounded hover:bg-slate-100 text-slate-500 hover:text-slate-900 transition"
+            title={collapsed ? "Expandir menu" : "Recolher menu"}
+            aria-label={collapsed ? "Expandir menu" : "Recolher menu"}
           >
-            {it.label}
-          </NavLink>
-        ))}
+            {collapsed ? <PanelLeftOpen size={18} /> : <PanelLeftClose size={18} />}
+          </button>
+        </div>
+        <nav className="flex flex-col gap-1 px-2 mt-2">
+          {navItems.map((it) => {
+            const Icon = it.icon;
+            return (
+              <NavLink
+                key={it.to}
+                to={it.to}
+                end={it.end}
+                title={collapsed ? it.label : undefined}
+                className={({ isActive }) =>
+                  `flex items-center gap-3 px-2.5 py-2 rounded text-sm transition ${
+                    isActive ? "bg-slate-900 text-white" : "hover:bg-slate-100 text-slate-700"
+                  } ${collapsed ? "justify-center" : ""}`
+                }
+              >
+                <Icon size={18} className="shrink-0" />
+                {!collapsed && <span className="truncate">{it.label}</span>}
+              </NavLink>
+            );
+          })}
+        </nav>
       </aside>
       <main className="flex-1 overflow-auto">
         <Routes>
