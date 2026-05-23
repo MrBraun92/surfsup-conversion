@@ -7,6 +7,7 @@ import { salesRouter } from "./routers/sales.js";
 import { paymentsRouter } from "./routers/payments.js";
 import { conversationsRouter } from "./routers/conversations.js";
 import { clientsLogRouter } from "./routers/clientsLog.js";
+import { settingsRouter } from "./routers/settings.js";
 
 export const appRouter = router({
   ping: publicProcedure.query(() => ({ ok: true, ts: Date.now() })),
@@ -18,6 +19,7 @@ export const appRouter = router({
   payments: paymentsRouter,
   conversations: conversationsRouter,
   clientsLog: clientsLogRouter,
+  settings: settingsRouter,
 });
 
 export type AppRouter = typeof appRouter;
