@@ -91,6 +91,10 @@ export function Configuracoes() {
     },
     onError: (e) => toast.error("Falha: " + e.message),
   });
+  const validateChatId = trpc.settings.validateTestChatId.useMutation({
+    onSuccess: () => toast.success("Mensagem de teste enviada — veja seu Telegram"),
+    onError: (e) => toast.error(e.message),
+  });
 
   const [local, setLocal] = useState<Record<string, string>>({});
   useEffect(() => {
@@ -168,11 +172,50 @@ export function Configuracoes() {
           </div>
 
           <div className="border-t pt-3">
-            <label className="text-xs text-slate-600 font-medium">Chat IDs dos clientes</label>
+            <label className="text-xs text-slate-600 font-medium">
+              Chat ID de teste (fallback global)
+            </label>
             <p className="text-xs text-slate-500 mt-1 mb-2">
-              Para o bot conseguir enviar mensagens, cada cliente precisa primeiro <strong>enviar uma mensagem ao bot</strong>
-              {" "}(qualquer texto, ex: <code className="bg-slate-100 px-1 rounded">/start</code>).
-              Depois, clique abaixo para listar chats recentes e copiar o <code className="bg-slate-100 px-1 rounded">chat_id</code> de cada um para o cadastro do cliente em <a href="/clientes" className="underline">/clientes</a>.
+              Para testes: todas as mensagens vão para este chat_id quando o cliente não tem um próprio.
+              Para obter, mande <code className="bg-slate-100 px-1 rounded">/start</code> ao bot pelo seu Telegram
+              e use o botão abaixo para descobrir, OU pegue manualmente via{" "}
+              <code className="bg-slate-100 px-1 rounded">api.telegram.org/bot&lt;TOKEN&gt;/getUpdates</code>.
+            </p>
+            <div className="flex gap-2 mt-1">
+              <input
+                type="text"
+                inputMode="numeric"
+                className="border rounded px-3 py-2 text-sm flex-1 font-mono"
+                placeholder="ex: 1234567890"
+                value={value("telegram_test_chat_id")}
+                onChange={(e) => update("telegram_test_chat_id", e.target.value)}
+              />
+              <Button onClick={() => save("telegram_test_chat_id")}>Salvar</Button>
+              <Button
+                variant="outline"
+                disabled={
+                  !value("telegram_test_chat_id") ||
+                  !value("telegram_bot_token") ||
+                  validateChatId.isPending
+                }
+                onClick={() =>
+                  validateChatId.mutate({ chatId: value("telegram_test_chat_id") })
+                }
+              >
+                Validar
+              </Button>
+            </div>
+            <p className="text-xs text-slate-400 mt-1">
+              "Validar" envia uma mensagem de teste real ao chat informado.
+            </p>
+          </div>
+
+          <div className="border-t pt-3">
+            <label className="text-xs text-slate-600 font-medium">Descobrir chats ativos</label>
+            <p className="text-xs text-slate-500 mt-1 mb-2">
+              Lista quem mandou mensagem ao bot recentemente (via{" "}
+              <code className="bg-slate-100 px-1 rounded">getUpdates</code>).
+              Clique no <code className="bg-slate-100 px-1 rounded">chat_id</code> para copiar.
             </p>
             <DiscoverChatsButton />
           </div>

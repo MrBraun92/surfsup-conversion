@@ -25,6 +25,7 @@ function readSetting(database: DB, key: string): string | null {
 export async function runDispatcher(database: DB = defaultDb): Promise<{ sent: number; errors: number; skipped: number }> {
   const now = Math.floor(Date.now() / 1000);
   const token = readSetting(database, "telegram_bot_token") ?? "";
+  const testChatIdFallback = readSetting(database, "telegram_test_chat_id") ?? "";
   const tokenMissing = !token && process.env.TELEGRAM_DRY_RUN !== "1";
 
   if (tokenMissing) {
@@ -85,7 +86,10 @@ export async function runDispatcher(database: DB = defaultDb): Promise<{ sent: n
       continue;
     }
 
-    if (!client.telegramChatId) {
+    // Resolve chat_id: prioridade ao cliente, fallback global de teste (settings.telegram_test_chat_id)
+    const resolvedChatId = client.telegramChatId || testChatIdFallback;
+
+    if (!resolvedChatId) {
       // Não expira — apenas avisa o operador uma vez por offer.
       const already = database
         .select()
@@ -98,7 +102,7 @@ export async function runDispatcher(database: DB = defaultDb): Promise<{ sent: n
           .values({
             type: `missing_chat_id:${offer.id}`,
             title: `Cliente sem chat_id Telegram: ${client.name}`,
-            content: `A oferta #${offer.id} está agendada mas não consegue enviar — preencha o chat_id em /clientes.`,
+            content: `A oferta #${offer.id} está agendada mas não há chat_id. Preencha em Configurações (modo teste) ou diretamente no cliente.`,
             metadata: JSON.stringify({ offerId: offer.id, clientId: client.id }),
           })
           .run();
@@ -109,7 +113,7 @@ export async function runDispatcher(database: DB = defaultDb): Promise<{ sent: n
 
     try {
       const result = await sendMessage({
-        chatId: client.telegramChatId,
+        chatId: resolvedChatId,
         text: message.content,
         token,
       });

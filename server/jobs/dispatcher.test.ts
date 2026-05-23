@@ -140,6 +140,26 @@ describe("runDispatcher", () => {
     expect(notif2.length).toBe(notif.length);
   });
 
+  it("usa telegram_test_chat_id como fallback quando cliente não tem chat_id", async () => {
+    const db = setupTestDb();
+    const seeded = seedScheduled(db, { chatId: null });
+    // Insere setting global de fallback
+    db.insert(schema.settings)
+      .values({ key: "telegram_test_chat_id", value: "777" })
+      .run();
+
+    const result = await runDispatcher(db);
+    expect(result.sent).toBe(1);
+    expect(result.skipped).toBe(0);
+
+    const offer = db
+      .select()
+      .from(schema.conversionOffers)
+      .where(eq(schema.conversionOffers.id, seeded.offer.id))
+      .all()[0]!;
+    expect(offer.status).toBe("Sent");
+  });
+
   it("não envia se scheduledFor ainda está no futuro", async () => {
     const db = setupTestDb();
     const seeded = seedScheduled(db, { chatId: "12345" });

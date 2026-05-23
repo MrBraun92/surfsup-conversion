@@ -3,7 +3,7 @@ import { eq } from "drizzle-orm";
 import { router, publicProcedure } from "../trpc.js";
 import { db as defaultDb, schema, type DB } from "../db/index.js";
 import { SETTINGS_KEYS, type SettingsKey } from "../../shared/constants.js";
-import { getMe, discoverChats } from "../lib/telegram.js";
+import { getMe, discoverChats, sendMessage } from "../lib/telegram.js";
 import { TRPCError } from "@trpc/server";
 
 const settingsKeyEnum = z.enum(SETTINGS_KEYS as unknown as [SettingsKey, ...SettingsKey[]]);
@@ -43,6 +43,37 @@ export function createSettingsRouter(database: DB) {
       .mutation(async ({ input }) => {
         const r = await getMe(input.token);
         return r;
+      }),
+
+    validateTestChatId: publicProcedure
+      .input(z.object({ chatId: z.string().min(1) }))
+      .mutation(async ({ input }) => {
+        const tokenRow = database
+          .select()
+          .from(schema.settings)
+          .where(eq(schema.settings.key, "telegram_bot_token"))
+          .all()[0];
+        if (!tokenRow?.value) {
+          throw new TRPCError({
+            code: "PRECONDITION_FAILED",
+            message: "Salve o Telegram Bot Token primeiro.",
+          });
+        }
+        try {
+          const r = await sendMessage({
+            chatId: input.chatId.trim(),
+            token: tokenRow.value,
+            text:
+              "✅ Teste do Surfsup Conversão — se você está lendo isso, o chat_id está corretamente configurado.",
+          });
+          return { ok: true as const, messageId: r.messageId };
+        } catch (e: any) {
+          const desc = e?.response?.data?.description ?? e?.message ?? "Erro desconhecido";
+          throw new TRPCError({
+            code: "BAD_REQUEST",
+            message: `Telegram rejeitou: ${desc}`,
+          });
+        }
       }),
 
     discoverTelegramChats: publicProcedure.mutation(async () => {

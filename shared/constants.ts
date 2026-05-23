@@ -31,6 +31,7 @@ export const SETTINGS_KEYS = [
   "min_score_to_generate",
   "stripe_mode",
   "telegram_bot_token",
+  "telegram_test_chat_id",
   "surfsup_notify_email",
 ] as const;
 export type SettingsKey = (typeof SETTINGS_KEYS)[number];
