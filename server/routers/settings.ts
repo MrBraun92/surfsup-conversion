@@ -3,7 +3,8 @@ import { eq } from "drizzle-orm";
 import { router, publicProcedure } from "../trpc.js";
 import { db as defaultDb, schema, type DB } from "../db/index.js";
 import { SETTINGS_KEYS, type SettingsKey } from "../../shared/constants.js";
-import { getMe } from "../lib/telegram.js";
+import { getMe, discoverChats } from "../lib/telegram.js";
+import { TRPCError } from "@trpc/server";
 
 const settingsKeyEnum = z.enum(SETTINGS_KEYS as unknown as [SettingsKey, ...SettingsKey[]]);
 
@@ -43,6 +44,29 @@ export function createSettingsRouter(database: DB) {
         const r = await getMe(input.token);
         return r;
       }),
+
+    discoverTelegramChats: publicProcedure.mutation(async () => {
+      const tokenRow = database
+        .select()
+        .from(schema.settings)
+        .where(eq(schema.settings.key, "telegram_bot_token"))
+        .all()[0];
+      if (!tokenRow?.value) {
+        throw new TRPCError({
+          code: "PRECONDITION_FAILED",
+          message: "Salve o Telegram Bot Token primeiro.",
+        });
+      }
+      try {
+        const chats = await discoverChats(tokenRow.value);
+        return { ok: true as const, chats };
+      } catch (e) {
+        throw new TRPCError({
+          code: "INTERNAL_SERVER_ERROR",
+          message: (e as Error).message,
+        });
+      }
+    }),
   });
 }
 

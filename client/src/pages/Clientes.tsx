@@ -1,5 +1,7 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { toast } from "sonner";
 import { trpc } from "@/lib/trpc";
+import { Button } from "@/components/ui/button";
 import { formatDate, cn } from "@/lib/utils";
 
 type Filter = "all" | "cooldown" | "has_offer" | "paid";
@@ -130,9 +132,24 @@ export function Clientes() {
 }
 
 function ClientDrawer({ clientId, onClose }: { clientId: number; onClose: () => void }) {
+  const utils = trpc.useUtils();
   const q = trpc.clientsLog.getClientDetail.useQuery({ clientId });
   const data = q.data;
   const boardMap = new Map((data?.boards ?? []).map((b: any) => [b.id, b]));
+
+  const [chatIdInput, setChatIdInput] = useState<string>("");
+  useEffect(() => {
+    if (data?.client) setChatIdInput(data.client.telegramChatId ?? "");
+  }, [data?.client]);
+
+  const setChatId = trpc.clientsLog.setTelegramChatId.useMutation({
+    onSuccess: () => {
+      toast.success("Chat ID salvo");
+      utils.clientsLog.getClientDetail.invalidate({ clientId });
+      utils.clientsLog.listQualified.invalidate();
+    },
+    onError: (e) => toast.error("Erro: " + e.message),
+  });
 
   return (
     <>
@@ -159,6 +176,36 @@ function ClientDrawer({ clientId, onClose }: { clientId: number; onClose: () => 
 
           {data && (
             <>
+              <section className="bg-blue-50 border border-blue-200 rounded p-3">
+                <h3 className="text-xs uppercase tracking-wide text-blue-700 font-semibold mb-2">
+                  Telegram chat_id
+                </h3>
+                <p className="text-xs text-slate-600 mb-2">
+                  ID do chat do cliente com o bot. Sem isso, nenhuma mensagem é enviada.
+                  Veja em <a href="/configuracoes" className="underline">Configurações → Buscar chats recentes</a>.
+                </p>
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    placeholder="ex: 1234567890"
+                    value={chatIdInput}
+                    onChange={(e) => setChatIdInput(e.target.value)}
+                    className="border rounded px-3 py-1.5 text-sm font-mono flex-1"
+                  />
+                  <Button
+                    size="sm"
+                    disabled={setChatId.isPending || chatIdInput === (data.client.telegramChatId ?? "")}
+                    onClick={() =>
+                      setChatId.mutate({
+                        clientId,
+                        telegramChatId: chatIdInput.trim() || null,
+                      })
+                    }
+                  >
+                    Salvar
+                  </Button>
+                </div>
+              </section>
               <section>
                 <h3 className="text-xs uppercase tracking-wide text-slate-500 mb-2">
                   Cooldown

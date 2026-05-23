@@ -112,27 +112,32 @@ describe("runDispatcher", () => {
     expect(msg.telegramMessageId).toBe(-1); // dry-run
   });
 
-  it("marca offer como Expired quando cliente não tem telegramChatId", async () => {
+  it("pula (não expira) quando cliente não tem telegramChatId e cria notification", async () => {
     const db = setupTestDb();
     const seeded = seedScheduled(db, { chatId: null });
 
     const result = await runDispatcher(db);
-    expect(result.errors).toBe(1);
+    expect(result.skipped).toBe(1);
+    expect(result.errors).toBe(0);
     expect(result.sent).toBe(0);
 
+    // Offer continua Scheduled — não foi expirado
     const offer = db
       .select()
       .from(schema.conversionOffers)
       .where(eq(schema.conversionOffers.id, seeded.offer.id))
       .all()[0]!;
-    expect(offer.status).toBe("Expired");
+    expect(offer.status).toBe("Scheduled");
 
-    const msg = db
-      .select()
-      .from(schema.messages)
-      .where(eq(schema.messages.id, seeded.message.id))
-      .all()[0]!;
-    expect(msg.response).toMatch(/sem telegram_chat_id/);
+    // Notification criada
+    const notif = db.select().from(schema.notifications).all();
+    expect(notif.length).toBeGreaterThan(0);
+    expect(notif[0]!.type).toMatch(/missing_chat_id/);
+
+    // Rodar de novo: não duplica notification
+    await runDispatcher(db);
+    const notif2 = db.select().from(schema.notifications).all();
+    expect(notif2.length).toBe(notif.length);
   });
 
   it("não envia se scheduledFor ainda está no futuro", async () => {

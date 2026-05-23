@@ -183,6 +183,31 @@ export function createClientsLogRouter(database: DB) {
         });
         return { client, rentals, offers, sales, boards, cooldown };
       }),
+
+    setTelegramChatId: publicProcedure
+      .input(
+        z.object({
+          clientId: z.number().int().positive(),
+          telegramChatId: z.string().nullable(),
+        }),
+      )
+      .mutation(async ({ input }) => {
+        const exists = database
+          .select()
+          .from(schema.clients)
+          .where(eq(schema.clients.id, input.clientId))
+          .all()[0];
+        if (!exists) {
+          throw new TRPCError({ code: "NOT_FOUND", message: "Cliente não encontrado." });
+        }
+        const value = input.telegramChatId?.trim() || null;
+        database
+          .update(schema.clients)
+          .set({ telegramChatId: value, updatedAt: new Date() })
+          .where(eq(schema.clients.id, input.clientId))
+          .run();
+        return { ok: true, telegramChatId: value };
+      }),
   });
 }
 

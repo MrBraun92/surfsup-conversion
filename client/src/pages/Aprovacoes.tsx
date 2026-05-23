@@ -154,8 +154,123 @@ function ApprovalCard({ data }: { data: CardData }) {
   );
 }
 
-export function Aprovacoes() {
+function ScheduledList() {
+  const utils = trpc.useUtils();
+  const { data, isLoading } = trpc.offers.listScheduled.useQuery();
+  const cancel = trpc.offers.cancelScheduled.useMutation({
+    onSuccess: () => {
+      toast.success("Agendamento cancelado — voltou para Aprovações");
+      utils.offers.listScheduled.invalidate();
+      utils.offers.listPendingApproval.invalidate();
+    },
+    onError: (e) => toast.error("Erro: " + e.message),
+  });
+
+  if (isLoading) return <div className="text-slate-500">Carregando...</div>;
+  if (!data || data.length === 0)
+    return (
+      <Card className="p-8 text-center text-slate-500">
+        Nenhuma mensagem agendada no momento.
+      </Card>
+    );
+
+  const formatDateTime = (unix: number) =>
+    new Date(unix * 1000).toLocaleString("pt-BR", {
+      timeZone: "America/Sao_Paulo",
+      dateStyle: "short",
+      timeStyle: "short",
+    });
+
+  return (
+    <div className="space-y-3">
+      {data.map((row) => {
+        const due = row.offer.scheduledFor && row.offer.scheduledFor * 1000 < Date.now();
+        const noChatId = !row.client.telegramChatId;
+        return (
+          <Card key={row.offer.id} className="p-4">
+            <div className="flex items-start justify-between gap-3 flex-wrap">
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className="font-semibold">{row.client.name}</span>
+                  <span className="text-sm text-slate-500">· {row.client.phone}</span>
+                </div>
+                <div className="text-sm text-slate-600 mt-1">
+                  {row.board.model} {row.board.size}
+                </div>
+                <div className="text-xs text-slate-500 mt-1">
+                  Enviar em <span className="font-mono">{row.offer.scheduledFor ? formatDateTime(row.offer.scheduledFor) : "—"}</span>
+                  {due && <span className="ml-2 text-amber-600 font-medium">⏰ horário já passou</span>}
+                  {noChatId && (
+                    <span className="ml-2 text-red-600 font-medium">⚠️ cliente sem chat_id Telegram</span>
+                  )}
+                </div>
+                {row.lastMessage && (
+                  <div className="mt-3 p-3 bg-slate-50 border rounded text-xs whitespace-pre-wrap font-mono text-slate-700">
+                    {row.lastMessage.content}
+                  </div>
+                )}
+              </div>
+              <Button
+                variant="outline"
+                onClick={() => {
+                  if (confirm("Cancelar este agendamento? A mensagem volta para Aprovações."))
+                    cancel.mutate({ offerId: row.offer.id });
+                }}
+                disabled={cancel.isPending}
+              >
+                Cancelar agendamento
+              </Button>
+            </div>
+          </Card>
+        );
+      })}
+    </div>
+  );
+}
+
+function PendingList() {
   const { data, isLoading } = trpc.offers.listPendingApproval.useQuery();
+
+  if (isLoading) return <div className="text-slate-500">Carregando...</div>;
+  if (!data || data.length === 0)
+    return (
+      <Card className="p-8 text-center text-slate-500">
+        Nenhuma mensagem aguardando aprovação.
+      </Card>
+    );
+
+  return (
+    <div className="space-y-4">
+      {data.map((row) => {
+        if (!row.lastMessage) return null;
+        return (
+          <ApprovalCard
+            key={row.offer.id}
+            data={{
+              offerId: row.offer.id,
+              rentalId: row.rental.id,
+              messageId: row.lastMessage.id,
+              clientName: row.client.name,
+              clientPhone: row.client.phone,
+              boardModel: row.board.model,
+              boardSize: row.board.size,
+              score: row.offer.score,
+              precoSite: row.board.precoSite,
+              precoAmigo: row.board.precoAmigo,
+              endDate: row.rental.endDate,
+              initialContent: row.lastMessage.content,
+            }}
+          />
+        );
+      })}
+    </div>
+  );
+}
+
+export function Aprovacoes() {
+  const [tab, setTab] = useState<"pending" | "scheduled">("pending");
+  const pendingQ = trpc.offers.listPendingApproval.useQuery();
+  const scheduledQ = trpc.offers.listScheduled.useQuery();
 
   return (
     <div className="p-8 space-y-6">
@@ -166,38 +281,32 @@ export function Aprovacoes() {
         </p>
       </div>
 
-      {isLoading && <div className="text-slate-500">Carregando...</div>}
-
-      {!isLoading && (!data || data.length === 0) && (
-        <Card className="p-8 text-center text-slate-500">
-          Nenhuma mensagem aguardando aprovação.
-        </Card>
-      )}
-
-      <div className="space-y-4">
-        {data?.map((row) => {
-          if (!row.lastMessage) return null;
-          return (
-            <ApprovalCard
-              key={row.offer.id}
-              data={{
-                offerId: row.offer.id,
-                rentalId: row.rental.id,
-                messageId: row.lastMessage.id,
-                clientName: row.client.name,
-                clientPhone: row.client.phone,
-                boardModel: row.board.model,
-                boardSize: row.board.size,
-                score: row.offer.score,
-                precoSite: row.board.precoSite,
-                precoAmigo: row.board.precoAmigo,
-                endDate: row.rental.endDate,
-                initialContent: row.lastMessage.content,
-              }}
-            />
-          );
-        })}
+      <div className="flex gap-2 border-b">
+        <button
+          onClick={() => setTab("pending")}
+          className={cn(
+            "px-4 py-2 text-sm font-medium border-b-2 -mb-px transition",
+            tab === "pending"
+              ? "border-slate-900 text-slate-900"
+              : "border-transparent text-slate-500 hover:text-slate-900",
+          )}
+        >
+          Aguardando aprovação ({pendingQ.data?.length ?? 0})
+        </button>
+        <button
+          onClick={() => setTab("scheduled")}
+          className={cn(
+            "px-4 py-2 text-sm font-medium border-b-2 -mb-px transition",
+            tab === "scheduled"
+              ? "border-slate-900 text-slate-900"
+              : "border-transparent text-slate-500 hover:text-slate-900",
+          )}
+        >
+          Agendadas ({scheduledQ.data?.length ?? 0})
+        </button>
       </div>
+
+      {tab === "pending" ? <PendingList /> : <ScheduledList />}
     </div>
   );
 }

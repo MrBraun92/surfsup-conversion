@@ -380,6 +380,80 @@ export function createOffersRouter(database: DB) {
           .all()[0]!;
         return { offer: updated };
       }),
+
+    listScheduled: publicProcedure.query(async () => {
+      const offers = database
+        .select()
+        .from(schema.conversionOffers)
+        .where(eq(schema.conversionOffers.status, "Scheduled"))
+        .orderBy(schema.conversionOffers.scheduledFor)
+        .all();
+      if (offers.length === 0) return [];
+
+      const clientIds = [...new Set(offers.map((o) => o.clientId))];
+      const boardIds = [...new Set(offers.map((o) => o.boardId))];
+      const rentalIds = [...new Set(offers.map((o) => o.rentalId))];
+
+      const clients = database
+        .select()
+        .from(schema.clients)
+        .where(inArray(schema.clients.id, clientIds))
+        .all();
+      const boards = database
+        .select()
+        .from(schema.boards)
+        .where(inArray(schema.boards.id, boardIds))
+        .all();
+      const rentals = database
+        .select()
+        .from(schema.rentals)
+        .where(inArray(schema.rentals.id, rentalIds))
+        .all();
+      const allMessages = database
+        .select()
+        .from(schema.messages)
+        .where(inArray(schema.messages.offerId, offers.map((o) => o.id)))
+        .orderBy(desc(schema.messages.createdAt))
+        .all();
+
+      const clientMap = new Map(clients.map((c) => [c.id, c]));
+      const boardMap = new Map(boards.map((b) => [b.id, b]));
+      const rentalMap = new Map(rentals.map((r) => [r.id, r]));
+
+      return offers.map((o) => ({
+        offer: o,
+        client: clientMap.get(o.clientId)!,
+        board: boardMap.get(o.boardId)!,
+        rental: rentalMap.get(o.rentalId)!,
+        lastMessage: allMessages.find((m) => m.offerId === o.id) ?? null,
+      }));
+    }),
+
+    cancelScheduled: publicProcedure
+      .input(z.object({ offerId: z.number().int().positive() }))
+      .mutation(async ({ input }) => {
+        const offer = database
+          .select()
+          .from(schema.conversionOffers)
+          .where(eq(schema.conversionOffers.id, input.offerId))
+          .all()[0];
+        if (!offer) {
+          throw new TRPCError({ code: "NOT_FOUND", message: "Oferta não encontrada." });
+        }
+        if (offer.status !== "Scheduled") {
+          throw new TRPCError({
+            code: "PRECONDITION_FAILED",
+            message: `Oferta está em ${offer.status}, só dá pra cancelar Scheduled.`,
+          });
+        }
+        // Volta para PendingApproval, mantendo a message (operador pode reagendar)
+        database
+          .update(schema.conversionOffers)
+          .set({ status: "PendingApproval", scheduledFor: null, updatedAt: new Date() })
+          .where(eq(schema.conversionOffers.id, input.offerId))
+          .run();
+        return { ok: true };
+      }),
   });
 }
 

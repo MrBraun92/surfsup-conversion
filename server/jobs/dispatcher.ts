@@ -3,8 +3,9 @@
  * e scheduledFor <= agora. Marca message.sentAt + telegramMessageId,
  * promove offer para Sent e seta offerExpiresAt = rental.endDate.
  *
- * Em caso de cliente sem telegramChatId: marca message.response com erro
- * e offer.status = Expired (não retentável).
+ * Em caso de cliente sem telegramChatId: apenas pula este ciclo e cria
+ * uma notification "missing_chat_id" (operador precisa preencher o chat_id).
+ * NÃO expira a oferta — vai retentar nos próximos ticks.
  *
  * Em caso de settings.telegram_bot_token vazio: log warn e early return.
  */
@@ -85,20 +86,24 @@ export async function runDispatcher(database: DB = defaultDb): Promise<{ sent: n
     }
 
     if (!client.telegramChatId) {
-      database
-        .update(schema.messages)
-        .set({
-          response: "[erro: cliente sem telegram_chat_id]",
-          updatedAt: new Date(),
-        })
-        .where(eq(schema.messages.id, message.id))
-        .run();
-      database
-        .update(schema.conversionOffers)
-        .set({ status: "Expired", updatedAt: new Date() })
-        .where(eq(schema.conversionOffers.id, offer.id))
-        .run();
-      errors++;
+      // Não expira — apenas avisa o operador uma vez por offer.
+      const already = database
+        .select()
+        .from(schema.notifications)
+        .where(eq(schema.notifications.type, `missing_chat_id:${offer.id}`))
+        .all()[0];
+      if (!already) {
+        database
+          .insert(schema.notifications)
+          .values({
+            type: `missing_chat_id:${offer.id}`,
+            title: `Cliente sem chat_id Telegram: ${client.name}`,
+            content: `A oferta #${offer.id} está agendada mas não consegue enviar — preencha o chat_id em /clientes.`,
+            metadata: JSON.stringify({ offerId: offer.id, clientId: client.id }),
+          })
+          .run();
+      }
+      skipped++;
       continue;
     }
 
