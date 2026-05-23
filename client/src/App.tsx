@@ -1,6 +1,7 @@
 import { Routes, Route, NavLink } from "react-router-dom";
 import { Dashboard } from "./pages/Dashboard";
 import { Importar } from "./pages/Importar";
+import { Alugueis } from "./pages/Alugueis";
 
 const navItems = [
   { to: "/", label: "Dashboard", end: true },
@@ -43,7 +44,7 @@ export function App() {
       <main className="flex-1 overflow-auto">
         <Routes>
           <Route path="/" element={<Dashboard />} />
-          <Route path="/alugueis" element={<Placeholder title="Aluguéis" />} />
+          <Route path="/alugueis" element={<Alugueis />} />
           <Route path="/aprovacoes" element={<Placeholder title="Aprovações" />} />
           <Route path="/conversas" element={<Placeholder title="Conversas" />} />
           <Route path="/vendas" element={<Placeholder title="Vendas" />} />
