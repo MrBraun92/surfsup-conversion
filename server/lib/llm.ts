@@ -73,6 +73,66 @@ function buildPrompt(input: DraftOfferInput): string {
   );
 }
 
+export type InboundIntent = "interested" | "not_interested" | "paid" | "question";
+
+export interface InboundIntentResult {
+  intent: InboundIntent;
+  confidence: number;
+}
+
+function offlineIntent(text: string): InboundIntentResult {
+  const t = (text ?? "").toLowerCase();
+  const has = (...needles: string[]) => needles.some((n) => t.includes(n));
+  if (has("paguei", "pago", "pagamento feito", "transferi")) {
+    return { intent: "paid", confidence: 0.6 };
+  }
+  if (has("não quero", "nao quero", "n quero", "não tenho interesse", "nao tenho interesse", "recuso")) {
+    return { intent: "not_interested", confidence: 0.6 };
+  }
+  if (has("quero", "aceito", "topo", "fechado", "vou ficar", "fico com", "sim")) {
+    return { intent: "interested", confidence: 0.6 };
+  }
+  if (/^\s*não\s*$|^\s*nao\s*$/.test(t)) {
+    return { intent: "not_interested", confidence: 0.6 };
+  }
+  return { intent: "question", confidence: 0.6 };
+}
+
+export async function classifyInboundIntent(text: string): Promise<InboundIntentResult> {
+  if (isOfflineMode()) {
+    return offlineIntent(text);
+  }
+  try {
+    const apiKey = process.env.OPENAI_API_KEY!;
+    const model = process.env.OPENAI_MODEL ?? "gpt-4o-mini";
+    const client = new OpenAI({ apiKey });
+    const prompt =
+      `Classify the following Brazilian Portuguese reply from a surf-shop customer about an offer to keep their rental board. ` +
+      `Reply MUST be JSON {"intent": "...", "confidence": number}. ` +
+      `intent ∈ {interested, not_interested, paid, question}. Text: "${text}"`;
+    const response = await client.chat.completions.create({
+      model,
+      messages: [{ role: "user", content: prompt }],
+      temperature: 0,
+      max_tokens: 60,
+      response_format: { type: "json_object" },
+    });
+    const raw = response.choices[0]?.message?.content?.trim();
+    if (!raw) return offlineIntent(text);
+    const parsed = JSON.parse(raw);
+    const intent = parsed.intent as InboundIntent;
+    const confidence = typeof parsed.confidence === "number" ? parsed.confidence : 0.5;
+    if (!["interested", "not_interested", "paid", "question"].includes(intent)) {
+      return offlineIntent(text);
+    }
+    return { intent, confidence };
+  } catch (err) {
+    // eslint-disable-next-line no-console
+    console.error("[llm] erro classificando intent, usando fallback offline:", err);
+    return offlineIntent(text);
+  }
+}
+
 export async function draftOfferMessage(input: DraftOfferInput): Promise<string> {
   if (isOfflineMode()) {
     return offlineTemplate(input);

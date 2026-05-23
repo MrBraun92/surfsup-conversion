@@ -4,6 +4,7 @@ import { Importar } from "./pages/Importar";
 import { Alugueis } from "./pages/Alugueis";
 import { Aprovacoes } from "./pages/Aprovacoes";
 import { Vendas } from "./pages/Vendas";
+import { Conversas } from "./pages/Conversas";
 import { Pay } from "./pages/Pay";
 
 const navItems = [
@@ -60,7 +61,7 @@ export function App() {
           <Route path="/" element={<Dashboard />} />
           <Route path="/alugueis" element={<Alugueis />} />
           <Route path="/aprovacoes" element={<Aprovacoes />} />
-          <Route path="/conversas" element={<Placeholder title="Conversas" />} />
+          <Route path="/conversas" element={<Conversas />} />
           <Route path="/vendas" element={<Vendas />} />
           <Route path="/clientes" element={<Placeholder title="Clientes" />} />
           <Route path="/importar" element={<Importar />} />

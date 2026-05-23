@@ -7,6 +7,7 @@ import { createContext } from "./trpc.js";
 import { runDispatcher } from "./jobs/dispatcher.js";
 import { runExpirer } from "./jobs/expirer.js";
 import { runRentalStatusSweeper } from "./jobs/rentalStatusSweeper.js";
+import { telegramWebhookHandler } from "./routers/telegramWebhook.js";
 
 const app = express();
 const PORT = Number(process.env.PORT ?? 3000);
@@ -25,6 +26,8 @@ app.use(
 app.get("/api/health", (_req, res) => {
   res.json({ ok: true, ts: Date.now() });
 });
+
+app.post("/api/integrations/telegram/webhook", telegramWebhookHandler);
 
 // Cron jobs — desabilitáveis via SURFSUP_DISABLE_CRON=1 (útil em testes / scripts)
 if (process.env.SURFSUP_DISABLE_CRON === "1") {
