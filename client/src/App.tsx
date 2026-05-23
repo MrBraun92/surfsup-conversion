@@ -1,5 +1,6 @@
 import { Routes, Route, NavLink } from "react-router-dom";
 import { Dashboard } from "./pages/Dashboard";
+import { Importar } from "./pages/Importar";
 
 const navItems = [
   { to: "/", label: "Dashboard", end: true },
@@ -47,7 +48,7 @@ export function App() {
           <Route path="/conversas" element={<Placeholder title="Conversas" />} />
           <Route path="/vendas" element={<Placeholder title="Vendas" />} />
           <Route path="/clientes" element={<Placeholder title="Clientes" />} />
-          <Route path="/importar" element={<Placeholder title="Importar" />} />
+          <Route path="/importar" element={<Importar />} />
           <Route path="/configuracoes" element={<Placeholder title="Configurações" />} />
         </Routes>
       </main>
