@@ -1,9 +1,10 @@
-import { Routes, Route, NavLink } from "react-router-dom";
+import { Routes, Route, NavLink, useLocation } from "react-router-dom";
 import { Dashboard } from "./pages/Dashboard";
 import { Importar } from "./pages/Importar";
 import { Alugueis } from "./pages/Alugueis";
 import { Aprovacoes } from "./pages/Aprovacoes";
 import { Vendas } from "./pages/Vendas";
+import { Pay } from "./pages/Pay";
 
 const navItems = [
   { to: "/", label: "Dashboard", end: true },
@@ -26,6 +27,17 @@ function Placeholder({ title }: { title: string }) {
 }
 
 export function App() {
+  const location = useLocation();
+  const isStandaloneRoute = location.pathname.startsWith("/pay/");
+
+  if (isStandaloneRoute) {
+    return (
+      <Routes>
+        <Route path="/pay/:sessionId" element={<Pay />} />
+      </Routes>
+    );
+  }
+
   return (
     <div className="flex min-h-screen">
       <aside className="w-56 border-r bg-white p-4 flex flex-col gap-1">
